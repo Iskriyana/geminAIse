@@ -88,6 +88,7 @@ async def try_on_apparel(product_name: str, setting: str = "studio lighting") ->
                 filename = f"{uuid.uuid4()}.jpg"
                 filepath = os.path.join(os.path.dirname(__file__), "..", "static", "tryon_images", filename)
                 
+                os.makedirs(os.path.dirname(filepath), exist_ok=True)
                 with open(filepath, "wb") as f:
                     f.write(part.inline_data.data)
                     

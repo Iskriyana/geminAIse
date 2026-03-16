@@ -99,11 +99,13 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
                     from geminaise_agent.agent import latest_user_images
                     latest_user_images[session_id] = image_data
 
-                    # Give the agent explicit instructions on what to do with the photo
+                    # Force the agent to explicitly acknowledge the image to prevent dropping the connection
                     content = types.Content(parts=[
                         types.Part(text="[SYSTEM MESSAGE: The user has just uploaded a photo of themselves. You MUST now use the try_on_apparel tool to generate an image of them wearing the requested clothes. Do not ask for permission, just call the tool.]")
                     ])
                     live_request_queue.send_content(content)
+
+
                 elif json_message.get("type") == "text":
                     content = types.Content(parts=[types.Part(text=json_message["text"])])
                     live_request_queue.send_content(content)

@@ -16,6 +16,8 @@ const messagesDiv = document.getElementById('messages');
 const micBtn = document.getElementById('mic-btn');
 const cameraBtn = document.getElementById('camera-btn');
 const captureBtn = document.getElementById('capture-btn');
+const uploadBtn = document.getElementById('upload-btn');
+const imageUpload = document.getElementById('image-upload');
 const cameraPreview = document.getElementById('camera-preview');
 const capturedImage = document.getElementById('captured-image');
 
@@ -353,4 +355,44 @@ captureBtn.addEventListener("click", () => {
     } else {
         addMessage("Please start the microphone first to send the image.", "system");
     }
+});
+
+uploadBtn.addEventListener("click", () => {
+    imageUpload.click();
+});
+
+imageUpload.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        const dataUrl = event.target.result;
+        capturedImage.src = dataUrl;
+        capturedImage.style.display = "block";
+        cameraPreview.style.display = "none";
+        
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(t => t.stop());
+            cameraStream = null;
+            cameraBtn.textContent = "Open Camera";
+            captureBtn.style.display = "none";
+        }
+        
+        addMessage("Photo uploaded! Send it to the agent by speaking.", "system");
+
+        if (websocket && websocket.readyState === WebSocket.OPEN) {
+            const base64data = dataUrl.split(',')[1];
+            websocket.send(JSON.stringify({
+                "type": "image",
+                "data": base64data,
+                "mimeType": file.type
+            }));
+            addMessage("Image sent to agent.", "user");
+        } else {
+            addMessage("Please start the microphone first to send the image.", "system");
+        }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
 });
