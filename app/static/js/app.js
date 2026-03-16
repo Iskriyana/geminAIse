@@ -223,6 +223,31 @@ async function startRecording() {
             }
         }
 
+        if (adkEvent.custom_video_url) {
+            const videoUrl = adkEvent.custom_video_url;
+            if (!displayedImages.has(videoUrl)) {
+                displayedImages.add(videoUrl);
+
+                // Display the video
+                const video = document.createElement('video');
+                video.src = videoUrl;
+                video.className = 'agent-video';
+                video.style.maxWidth = '100%';
+                video.style.borderRadius = '8px';
+                video.style.marginTop = '10px';
+                video.autoplay = true;
+                video.loop = true;
+                video.muted = true;
+                video.playsInline = true;
+
+                const p = document.createElement('div');
+                p.className = `message agent-message`;
+                p.appendChild(video);
+                messagesDiv.appendChild(p);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }
+        }
+
         // Handle normal content (text and audio)
         if (adkEvent.content && adkEvent.content.parts) {
             for (const part of adkEvent.content.parts) {
