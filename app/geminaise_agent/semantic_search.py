@@ -44,6 +44,9 @@ def _get_client() -> genai.Client:
         location = os.getenv("GEMINAISE_GCP_LOCATION") or os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
         if not project:
             raise RuntimeError("GOOGLE_CLOUD_PROJECT environment variable is not set.")
+        
+        # NOTE: Using the new genai SDK (google-genai). For Vertex AI we just set vertexai=True 
+        # project, location parameters.
         _client = genai.Client(vertexai=True, project=project, location=location)
         print(f"[SemanticSearch] Vertex AI client initialised. project={project}, location={location}")
     return _client

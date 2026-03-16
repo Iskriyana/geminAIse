@@ -44,6 +44,9 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
+import os
+app.mount("/product_images", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "..", "data", "images")), name="product_images")
+
 
 # Explicitly initialize the client to force Google AI Studio
 client = genai.Client(http_options={'api_version': 'v1alpha'})
@@ -134,6 +137,13 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
             if session_id in latest_tryon_videos:
                 video_url = latest_tryon_videos.pop(session_id)
                 custom_msg = json.dumps({"custom_video_url": video_url})
+                await websocket.send_text(custom_msg)
+
+            # Check if a static product image was requested and push it to the frontend
+            from geminaise_agent.agent import latest_product_images
+            if session_id in latest_product_images:
+                product_url = latest_product_images.pop(session_id)
+                custom_msg = json.dumps({"custom_product_image_url": product_url})
                 await websocket.send_text(custom_msg)
 
     try:
