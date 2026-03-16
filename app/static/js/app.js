@@ -46,29 +46,29 @@ function base64ToArrayBuffer(base64) {
         // The ADK sometimes sends base64 strings with padding missing or URL-safe characters
         // First, make it standard base64 by replacing URL-safe chars
         let standardBase64 = base64.replace(/-/g, '+').replace(/_/g, '/');
-        
+
         // Add padding if necessary
         while (standardBase64.length % 4) {
             standardBase64 += '=';
         }
-        
+
         const binaryString = window.atob(standardBase64);
         const len = binaryString.length;
-        
+
         // The PCM player expects 16-bit integers, so we need to ensure the byte length is even
         // If it's odd, we drop the last byte to prevent the "byte length of Int16Array should be a multiple of 2" error
         const validLen = len % 2 === 0 ? len : len - 1;
-        
+
         const bytes = new Uint8Array(validLen);
         for (let i = 0; i < validLen; i++) {
             bytes[i] = binaryString.charCodeAt(i);
         }
-        
+
         // Ensure we explicitly return an ArrayBuffer that is a multiple of 2 bytes
         return bytes.buffer.slice(0, validLen);
     } catch (e) {
         console.error("Failed to decode base64 audio data:", e, "Base64 string snippet:", base64.substring(0, 50));
-        return new ArrayBuffer(0); 
+        return new ArrayBuffer(0);
     }
 }
 
@@ -112,20 +112,20 @@ async function startRecording() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
     });
-    
+
     if (!response.ok) {
         addMessage(`Failed to create session: ${response.statusText}`, "system");
         stopRecording();
         return;
     }
-    
+
     const sessionData = await response.json();
     const sessionId = sessionData.id;
 
     // Connect to the custom FastAPI WebSocket endpoint
     const wsUrl = `ws://${window.location.host}/ws/local_user/${sessionId}`;
     websocket = new WebSocket(wsUrl);
-    
+
     websocket.onopen = async () => {
         isRecording = true;
         micBtn.textContent = "Stop Microphone";
@@ -150,39 +150,39 @@ async function startRecording() {
 
         // Start MIC
         audioRecorderContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-        mediaStream = await navigator.mediaDevices.getUserMedia({ 
+        mediaStream = await navigator.mediaDevices.getUserMedia({
             audio: {
                 echoCancellation: true,
                 noiseSuppression: true,
                 autoGainControl: true
-            } 
+            }
         });
         const source = audioRecorderContext.createMediaStreamSource(mediaStream);
-        
+
         try {
             // Use absolute URL for the worklet to avoid path resolution issues
             const workletUrl = window.location.origin + '/static/js/audio-worklet.js?v=' + new Date().getTime();
             await audioRecorderContext.audioWorklet.addModule(workletUrl);
             audioWorkletNode = new AudioWorkletNode(audioRecorderContext, 'audio-processor');
-            
+
             audioWorkletNode.port.onmessage = (event) => {
                 if (websocket.readyState === WebSocket.OPEN) {
                     // Convert Float32Array from worklet to Int16Array for the API
                     let float32Array = event.data;
-                    
+
                     // If the agent is speaking, send silence (zeros) instead of actual mic input
                     // This prevents echo loops but keeps the audio stream continuous for the VAD
                     if (isAgentSpeaking) {
                         float32Array = new Float32Array(float32Array.length); // Array of zeros
                     }
-                    
+
                     const pcmBuffer = floatTo16BitPCM(float32Array);
-                    
+
                     // Send directly as binary data, which is what the backend expects
                     websocket.send(pcmBuffer);
                 }
             };
-            
+
             source.connect(audioWorkletNode);
             audioWorkletNode.connect(audioRecorderContext.destination);
             console.log("Microphone successfully connected to worklet");
@@ -192,27 +192,27 @@ async function startRecording() {
         }
     };
 
-let textBuffer = "";
-let displayedImages = new Set();
+    let textBuffer = "";
+    let displayedImages = new Set();
 
     websocket.onmessage = (event) => {
         const adkEvent = JSON.parse(event.data);
-        
+
         // Handle normal content (text and audio)
         if (adkEvent.content && adkEvent.content.parts) {
             for (const part of adkEvent.content.parts) {
                 if (part.text && part.text.trim().length > 0) {
                     textBuffer += part.text;
-                    
+
                     // Check for image URL in the accumulated buffer
                     const urlRegex = /\/static\/tryon_images\/[a-zA-Z0-9-]+\.jpg/g;
                     const matches = textBuffer.match(urlRegex);
-                    
+
                     if (matches) {
                         for (const imageUrl of matches) {
                             if (!displayedImages.has(imageUrl)) {
                                 displayedImages.add(imageUrl);
-                                
+
                                 // Display the image
                                 const img = document.createElement('img');
                                 img.src = imageUrl;
@@ -220,7 +220,7 @@ let displayedImages = new Set();
                                 img.style.maxWidth = '100%';
                                 img.style.borderRadius = '8px';
                                 img.style.marginTop = '10px';
-                                
+
                                 const p = document.createElement('div');
                                 p.className = `message agent-message`;
                                 p.appendChild(img);
@@ -229,22 +229,22 @@ let displayedImages = new Set();
                             }
                         }
                     }
-                    
+
                     addMessage(part.text, adkEvent.author === 'user' ? 'user' : 'agent');
                 }
-                
+
                 // Handle audio (base64 encoded in JSON)
                 if (part.inlineData) {
                     if (part.inlineData.mimeType && part.inlineData.mimeType.startsWith("audio/")) {
                         console.log("Received audio chunk!");
-                        
+
                         // Mute the microphone while the agent is speaking to prevent echo loops
                         isAgentSpeaking = true;
                         clearTimeout(agentSpeakingTimeout);
                         agentSpeakingTimeout = setTimeout(() => {
                             isAgentSpeaking = false;
                         }, 1000); // Unmute 1 second after the last audio chunk arrives
-                        
+
                         if (audioPlayerNode) {
                             audioPlayerNode.port.postMessage(base64ToArrayBuffer(part.inlineData.data));
                         }
@@ -256,7 +256,7 @@ let displayedImages = new Set();
                         img.style.maxWidth = '100%';
                         img.style.borderRadius = '8px';
                         img.style.marginTop = '10px';
-                        
+
                         const p = document.createElement('div');
                         p.className = `message agent-message`;
                         p.appendChild(img);
@@ -273,14 +273,14 @@ let displayedImages = new Set();
                 }
             }
         }
-        
+
         // Log tool calls
         if (adkEvent.tool_calls) {
             for (const call of adkEvent.tool_calls) {
                 if (call.function_calls) {
-                   for (const fc of call.function_calls) {
-                       addMessage(`Agent is calling tool: ${fc.name} with args ${JSON.stringify(fc.args)}`, "system");
-                   }
+                    for (const fc of call.function_calls) {
+                        addMessage(`Agent is calling tool: ${fc.name} with args ${JSON.stringify(fc.args)}`, "system");
+                    }
                 }
             }
         }
@@ -307,8 +307,8 @@ cameraBtn.addEventListener("click", async () => {
     }
 
     try {
-        cameraStream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: 'user', width: { ideal: 768 }, height: { ideal: 768 } } 
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'user', width: { ideal: 768 }, height: { ideal: 768 } }
         });
         cameraPreview.srcObject = cameraStream;
         cameraPreview.style.display = "block";
@@ -327,27 +327,27 @@ captureBtn.addEventListener("click", () => {
     canvas.height = cameraPreview.videoHeight;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(cameraPreview, 0, 0, canvas.width, canvas.height);
-    
+
     const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
     capturedImage.src = dataUrl;
     capturedImage.style.display = "block";
     cameraPreview.style.display = "none";
-    
+
     // Stop camera
     cameraStream.getTracks().forEach(t => t.stop());
     cameraStream = null;
     cameraBtn.textContent = "Open Camera";
     captureBtn.style.display = "none";
-    
+
     addMessage("Photo captured! Send it to the agent by speaking.", "system");
 
     // Send it to websocket if open
     if (websocket && websocket.readyState === WebSocket.OPEN) {
         const base64data = dataUrl.split(',')[1];
         websocket.send(JSON.stringify({
-             "type": "image",
-             "data": base64data,
-             "mimeType": "image/jpeg"
+            "type": "image",
+            "data": base64data,
+            "mimeType": "image/jpeg"
         }));
         addMessage("Image sent to agent.", "user");
     } else {
