@@ -4,6 +4,7 @@ from google.genai import types
 import os
 import uuid
 import json
+from geminaise_agent.semantic_search import find_best_product, precompute_product_embeddings
 
 # Store the latest user images per session
 latest_user_images = {}
@@ -43,26 +44,32 @@ def find_product_image(product_name: str) -> bytes:
         
     return None
 
-async def try_on_apparel(product_name: str, setting: str = "studio lighting") -> str:
+async def try_on_apparel(product_query: str, setting: str = "studio lighting") -> str:
     """
     Use this tool when the user asks to try on a specific apparel item, piece of clothing, or outfit.
+    Describe the item in natural language — the system will automatically find the best matching product.
     
     Args:
-        product_name: The name or description of the apparel product the user wants to try on (e.g., "LnA Women's Alexandrine Sweater"). 
-                      If the user asks to try on what you are seeing, describe it.
-        setting: The background setting the user wants to be in (e.g. "at the beach", "in a cafe", "studio lighting"). Defaults to studio lighting.
+        product_query: A natural language description of what the user wants to try on
+                       (e.g. "something sporty", "a pencil skirt", "a cozy sweater", "a tweed jacket").
+                       Be as descriptive as possible about style, colour, or type.
+        setting: The background setting (e.g. "at the beach", "in a cafe", "studio lighting"). Defaults to studio lighting.
     """
-    # Find the latest user image (we'll just use the most recent one uploaded globally for this hackathon)
+    # Find the latest user image
     if not latest_user_images:
         return "I'm sorry, but I don't have a photo of you yet. Please upload a photo first."
     
+    # Semantically match the query to the product catalogue
+    matched_product = find_best_product(product_query)
+    product_name = matched_product["name"]
+    product_category = matched_product.get("category", "")
+    print(f"[Agent] Semantic match: '{product_query}' → '{product_name}' (score={matched_product.get('score', 0):.3f})")
+
     # Get the last uploaded image
     session_id, user_image_bytes = list(latest_user_images.items())[-1]
     
     try:
-        client = genai.Client()
-        
-        prompt = f"Seamlessly dress the person in the provided image with the {product_name}, placing them in a realistic {setting}."
+        prompt = f"Seamlessly dress the person in the provided photo with the '{product_name}' ({product_category}), placing them in a realistic {setting}. CRITICALLY IMPORTANT: You must perfectly preserve the original person's face, facial features, identity, hair, and body type exactly as they appear in the original image. Do not change their face at all."
         
         contents = [
             types.Part.from_bytes(data=user_image_bytes, mime_type="image/jpeg")
@@ -74,14 +81,23 @@ async def try_on_apparel(product_name: str, setting: str = "studio lighting") ->
             prompt += " Use the second image as the reference for the clothing item."
             
         contents.append(prompt)
-        
-        result = await client.aio.models.generate_content(
-            model='gemini-3.1-flash-image-preview',
-            contents=contents,
-            config=types.GenerateContentConfig(
-                response_modalities=["IMAGE"],
+
+        # Run the slow image generation in a background thread to avoid blocking
+        # the asyncio event loop (which causes 1006 keepalive ping timeout crashes).
+        import asyncio
+        def _generate():
+            sync_client = genai.Client()
+            return sync_client.models.generate_content(
+                model='gemini-3.1-flash-image-preview',
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    response_modalities=["IMAGE"],
+                ),
             )
-        )
+
+        print("[Agent] Starting image generation in background thread…")
+        result = await asyncio.get_event_loop().run_in_executor(None, _generate)
+        print("[Agent] Image generation complete.")
         
         if result.candidates and result.candidates[0].content.parts:
             part = result.candidates[0].content.parts[0]
@@ -105,6 +121,39 @@ async def try_on_apparel(product_name: str, setting: str = "studio lighting") ->
         print(f"Error generating try-on image: {e}")
         return f"I encountered an error while trying to generate the image: {str(e)}"
 
+def suggest_products(user_query: str) -> str:
+    """
+    Search the product catalogue for items matching the user's description.
+    ALWAYS call this tool first when a user asks about trying on clothes or asks what you have.
+    Returns the top 3 matching products so you can tell the user what's available.
+
+    Args:
+        user_query: What the user is looking for, e.g. "a nice jacket", "something casual".
+    """
+    from geminaise_agent.semantic_search import _product_embeddings, _embed_text
+    import numpy as np
+
+    if not _product_embeddings:
+        from geminaise_agent.semantic_search import precompute_product_embeddings
+        precompute_product_embeddings()
+
+    query_vec = _embed_text(user_query)
+    scored = []
+    for entry in _product_embeddings:
+        score = float(np.dot(query_vec, entry["embedding"]))
+        scored.append((score, entry["product"]))
+    scored.sort(reverse=True)
+
+    top3 = scored[:3]
+    lines = []
+    for i, (score, p) in enumerate(top3, 1):
+        lines.append(f"{i}. {p['name']} ({p['category']}, £{p['retail_price']:.2f})")
+
+    result = "Here are the closest matching products in our catalogue:\n" + "\n".join(lines)
+    print(f"[Agent] suggest_products('{user_query}') →\n{result}")
+    return result
+
+
 root_agent = Agent(
     name="geminAIse",
     model="gemini-2.5-flash-native-audio-preview-12-2025",
@@ -113,10 +162,22 @@ root_agent = Agent(
         "You are geminAIse, a helpful, enthusiastic, and friendly personal shopper and virtual stylist. "
         "You help users pick out outfits, provide fashion advice, and most importantly, allow them to virtually try on clothes. "
         "You have access to a live video stream from the user's camera (or their uploaded photos). "
-        "When a user asks to see how they would look in an outfit, or asks to 'try something on', you MUST use the try_on_apparel tool. "
+        "\n\n"
+        "CRITICAL PRODUCT RULES — follow these strictly:\n"
+        "1. You ONLY stock the products returned by the suggest_products tool. You must NEVER mention, recommend, or invent any product that is not in our catalogue.\n"
+        "2. When a user asks what you have, or what they could try on, ALWAYS call suggest_products first and then tell the user ONLY those results.\n"
+        "3. When a user wants to try something on, call suggest_products to find the best match, confirm the matched product name with the user, then call try_on_apparel.\n"
+        "4. When calling try_on_apparel, pass the exact product description from suggest_products as the product_query.\n"
+        "\n"
         "Keep your responses concise and conversational. "
         "CRITICAL INSTRUCTION: You communicate via voice. You MUST NOT output any internal thoughts, monologues, or actions. "
         "NEVER use asterisks (*) or markdown formatting. Speak directly and naturally to the user."
     ),
-    tools=[try_on_apparel]
+    tools=[suggest_products, try_on_apparel]
 )
+
+# Pre-compute product embeddings at import time (uses cache if available, fast)
+try:
+    precompute_product_embeddings()
+except Exception as e:
+    print(f"[SemanticSearch] Warning: could not precompute embeddings at startup: {e}")
