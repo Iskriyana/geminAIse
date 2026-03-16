@@ -223,6 +223,30 @@ async function startRecording() {
             }
         }
 
+        if (adkEvent.custom_product_image_url) {
+            const productUrl = adkEvent.custom_product_image_url;
+            if (!displayedImages.has(productUrl)) {
+                displayedImages.add(productUrl);
+
+                // Display the product image
+                const img = document.createElement('img');
+                img.src = productUrl;
+                img.className = 'agent-image';
+                img.style.maxWidth = '100%';
+                img.style.maxHeight = '300px'; // Keep product images a bit smaller
+                img.style.objectFit = 'contain';
+                img.style.borderRadius = '8px';
+                img.style.marginTop = '10px';
+                img.style.border = '2px solid #ddd';
+
+                const p = document.createElement('div');
+                p.className = `message agent-message`;
+                p.appendChild(img);
+                messagesDiv.appendChild(p);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }
+        }
+
         if (adkEvent.custom_video_url) {
             const videoUrl = adkEvent.custom_video_url;
             if (!displayedImages.has(videoUrl)) {
