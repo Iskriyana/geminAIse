@@ -2,19 +2,21 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Force Google AI Studio endpoints instead of Vertex AI for Live API
-if "GOOGLE_CLOUD_PROJECT" in os.environ:
-    del os.environ["GOOGLE_CLOUD_PROJECT"]
-if "GOOGLE_CLOUD_LOCATION" in os.environ:
-    del os.environ["GOOGLE_CLOUD_LOCATION"]
-
 load_dotenv(Path(__file__).parent.parent / ".env")
 
-# Ensure they are cleared even after load_dotenv in case they are in the .env file
-if "GOOGLE_CLOUD_PROJECT" in os.environ:
-    del os.environ["GOOGLE_CLOUD_PROJECT"]
-if "GOOGLE_CLOUD_LOCATION" in os.environ:
-    del os.environ["GOOGLE_CLOUD_LOCATION"]
+# The ADK Live API must NOT see GOOGLE_CLOUD_PROJECT/LOCATION (it would
+# switch to Vertex AI endpoints which don't support Live).
+# However the semantic search module needs them to call gemini-embedding-2-preview.
+# Save them to dedicated variables that semantic_search.py reads directly,
+# then remove from the process environment so ADK keeps using Google AI Studio.
+_GCP_PROJECT = os.environ.pop("GOOGLE_CLOUD_PROJECT", None)
+_GCP_LOCATION = os.environ.pop("GOOGLE_CLOUD_LOCATION", None)
+
+# Re-expose under a different name so semantic_search can pick them up
+if _GCP_PROJECT:
+    os.environ["GEMINAISE_GCP_PROJECT"] = _GCP_PROJECT
+if _GCP_LOCATION:
+    os.environ["GEMINAISE_GCP_LOCATION"] = _GCP_LOCATION
 
 # Explicitly set the API version to v1alpha for Live API support
 os.environ["GEMINI_API_VERSION"] = "v1alpha"
