@@ -200,38 +200,32 @@ async function startRecording() {
     websocket.onmessage = (event) => {
         const adkEvent = JSON.parse(event.data);
 
+        // Handle custom backend pushes
+        if (adkEvent.custom_image_url) {
+            const imageUrl = adkEvent.custom_image_url;
+            if (!displayedImages.has(imageUrl)) {
+                displayedImages.add(imageUrl);
+
+                // Display the image
+                const img = document.createElement('img');
+                img.src = imageUrl;
+                img.className = 'agent-image';
+                img.style.maxWidth = '100%';
+                img.style.borderRadius = '8px';
+                img.style.marginTop = '10px';
+
+                const p = document.createElement('div');
+                p.className = `message agent-message`;
+                p.appendChild(img);
+                messagesDiv.appendChild(p);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }
+        }
+
         // Handle normal content (text and audio)
         if (adkEvent.content && adkEvent.content.parts) {
             for (const part of adkEvent.content.parts) {
                 if (part.text && part.text.trim().length > 0) {
-                    textBuffer += part.text;
-
-                    // Check for image URL in the accumulated buffer
-                    const urlRegex = /\/static\/tryon_images\/[a-zA-Z0-9-]+\.jpg/g;
-                    const matches = textBuffer.match(urlRegex);
-
-                    if (matches) {
-                        for (const imageUrl of matches) {
-                            if (!displayedImages.has(imageUrl)) {
-                                displayedImages.add(imageUrl);
-
-                                // Display the image
-                                const img = document.createElement('img');
-                                img.src = imageUrl;
-                                img.className = 'agent-image';
-                                img.style.maxWidth = '100%';
-                                img.style.borderRadius = '8px';
-                                img.style.marginTop = '10px';
-
-                                const p = document.createElement('div');
-                                p.className = `message agent-message`;
-                                p.appendChild(img);
-                                messagesDiv.appendChild(p);
-                                messagesDiv.scrollTop = messagesDiv.scrollHeight;
-                            }
-                        }
-                    }
-
                     addMessage(part.text, adkEvent.author === 'user' ? 'user' : 'agent');
                 }
 
