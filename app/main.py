@@ -111,6 +111,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
                     live_request_queue.send_content(content)
 
     async def downstream_task():
+        from geminaise_agent.agent import latest_tryon_urls
         async for event in runner.run_live(
             user_id=user_id,
             session_id=session_id,
@@ -119,6 +120,12 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
         ):
             event_json = event.model_dump_json(exclude_none=True, by_alias=True)
             await websocket.send_text(event_json)
+
+            # Check if a new image was generated for this session and push it to the frontend
+            if session_id in latest_tryon_urls:
+                url = latest_tryon_urls.pop(session_id)
+                custom_msg = json.dumps({"custom_image_url": url})
+                await websocket.send_text(custom_msg)
 
     try:
         await asyncio.gather(upstream_task(), downstream_task())

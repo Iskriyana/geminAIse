@@ -7,6 +7,7 @@ import json
 
 # Store the latest user images per session
 latest_user_images = {}
+latest_tryon_urls = {}
 
 def find_product_image(product_name: str) -> bytes:
     """Attempt to find the pre-generated product image based on the product name."""
@@ -92,8 +93,11 @@ async def try_on_apparel(product_name: str, setting: str = "studio lighting") ->
                 with open(filepath, "wb") as f:
                     f.write(part.inline_data.data)
                     
-                # Return a simple string with the URL
-                return f"I have generated the image of you wearing the {product_name} {setting}. The image URL is /static/tryon_images/{filename}. Tell the user the image is ready and repeat the exact URL in your response."
+                image_url = f"/static/tryon_images/{filename}"
+                latest_tryon_urls[session_id] = image_url
+                
+                # Return a simple string with context
+                return f"I have successfully generated the image of you wearing the {product_name} {setting}. The image is now displayed on the user's screen. Tell the user their image is ready!"
                 
         return "I tried to generate the image, but something went wrong with the image generation service."
         
