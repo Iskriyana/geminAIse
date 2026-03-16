@@ -20,6 +20,7 @@ const uploadBtn = document.getElementById('upload-btn');
 const imageUpload = document.getElementById('image-upload');
 const cameraPreview = document.getElementById('camera-preview');
 const capturedImage = document.getElementById('captured-image');
+const placeholderText = document.getElementById('placeholder-text');
 
 // Add message to chat log
 function addMessage(text, type) {
@@ -310,6 +311,7 @@ cameraBtn.addEventListener("click", async () => {
         cameraPreview.style.display = "block";
         captureBtn.style.display = "block";
         capturedImage.style.display = "none";
+        placeholderText.style.display = "none";
         cameraBtn.textContent = "Close Camera";
     } catch (e) {
         alert("Camera error: " + e.message);
@@ -365,6 +367,7 @@ imageUpload.addEventListener("change", (e) => {
         capturedImage.src = dataUrl;
         capturedImage.style.display = "block";
         cameraPreview.style.display = "none";
+        placeholderText.style.display = "none";
         
         if (cameraStream) {
             cameraStream.getTracks().forEach(t => t.stop());
