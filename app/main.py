@@ -129,6 +129,13 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
                 custom_msg = json.dumps({"custom_image_url": url})
                 await websocket.send_text(custom_msg)
 
+            # Check if a new video was generated for this session and push it to the frontend
+            from geminaise_agent.agent import latest_tryon_videos
+            if session_id in latest_tryon_videos:
+                video_url = latest_tryon_videos.pop(session_id)
+                custom_msg = json.dumps({"custom_video_url": video_url})
+                await websocket.send_text(custom_msg)
+
     try:
         await asyncio.gather(upstream_task(), downstream_task())
     except WebSocketDisconnect:
