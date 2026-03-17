@@ -88,7 +88,7 @@ async def try_on_apparel(product_query: str, setting: str = "studio lighting") -
     session_id, user_image_bytes = list(latest_user_images.items())[-1]
     
     try:
-        prompt = f"Seamlessly dress the person in the provided photo with the '{product_name}' ({product_category}), placing them in a realistic {setting}. CRITICALLY IMPORTANT: You must perfectly preserve the original person's face, facial features, identity, hair, and body type exactly as they appear in the original image. Do not change their face at all."
+        prompt = f"Seamlessly dress the person in the provided photo with the '{product_name}' ({product_category}), placing them in a realistic {setting}. CRITICALLY IMPORTANT: You must perfectly preserve the original person's face, facial features, identity, hair, and body type exactly as they appear in the original image. Do not change their face at all. Ensure the generated image is completely safe for work, fully clothed, and appropriate."
         
         contents = [
             types.Part.from_bytes(data=user_image_bytes, mime_type="image/jpeg")
@@ -110,6 +110,24 @@ async def try_on_apparel(product_query: str, setting: str = "studio lighting") -
                 contents=contents,
                 config=types.GenerateContentConfig(
                     response_modalities=["IMAGE"],
+                    safety_settings=[
+                        types.SafetySetting(
+                            category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+                            threshold=types.HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
+                        ),
+                        types.SafetySetting(
+                            category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                            threshold=types.HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
+                        ),
+                        types.SafetySetting(
+                            category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
+                            threshold=types.HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
+                        ),
+                        types.SafetySetting(
+                            category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+                            threshold=types.HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
+                        ),
+                    ]
                 ),
             )
 
@@ -213,13 +231,17 @@ async def generate_video(prompt: str) -> str:
             client = _get_vertex_client()
             return client.models.generate_videos(
                 model='veo-3.1-generate-001',
-                prompt=prompt,
-                image=types.Image(image_bytes=img_bytes, mime_type='image/jpeg'),
+                source=types.GenerateVideosSource(
+                    prompt=prompt,
+                    image=types.Image(image_bytes=img_bytes, mime_type='image/jpeg')
+                ),
                 config=types.GenerateVideosConfig(
                     aspect_ratio='9:16', # Standard phone portrait
                     duration_seconds=5,
                     number_of_videos=1,
                     fps=24,
+                    person_generation='ALLOW_ADULT',
+                    negative_prompt='nude, naked, nsfw, sexually explicit, inappropriate, violent, revealing clothing',
                 ),
             )
         
