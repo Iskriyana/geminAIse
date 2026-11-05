@@ -1,0 +1,72 @@
+[
+    {
+        "id": 7903,
+        "name": "ICE (5066) ladies smart herring bone tweed jacket brown 6-16",
+        "category": "Blazers & Jackets",
+        "brand": "Ice",
+        "retail_price": 30.989999771118164
+    },
+    {
+        "id": 70,
+        "name": "LnA Women's Beach Raglan Sweater",
+        "category": "Tops & Tees",
+        "brand": "LNA",
+        "retail_price": 99.0
+    },
+    {
+        "id": 791,
+        "name": "LnA Women's Alexandrine Sweater",
+        "category": "Sweaters",
+        "brand": "LNA",
+        "retail_price": 99.0
+    },
+    {
+        "id": 1513,
+        "name": "VIP Womens Bright Crochet Pullover Sweater",
+        "category": "Sweaters",
+        "brand": "VIP",
+        "retail_price": 12.989999771118164
+    },
+    {
+        "id": 132,
+        "name": "Asics Women's Core Long Sleeve Shirt",
+        "category": "Tops & Tees",
+        "brand": "ASICS",
+        "retail_price": 30.0
+    },
+    {
+        "id": 7234,
+        "name": "(2384) Fishtail Peplum Hem Pencil Skirt Black",
+        "category": "Skirts",
+        "brand": "Ice",
+        "retail_price": 24.989999771118164
+    },
+    {
+        "id": 7236,
+        "name": "ICE (2328) Stretch Black Satin Pencil Skirt-14",
+        "category": "Skirts",
+        "brand": "Ice",
+        "retail_price": 25.989999771118164
+    },
+    {
+        "id": 7246,
+        "name": "(2328) Satin Pencil Skirt with Skinny Belt Purple",
+        "category": "Skirts",
+        "brand": "Ice",
+        "retail_price": 23.989999771118164
+    },
+    {
+        "id": 7377,
+        "name": "(2382) Waist Detail Pencil Skirt Shadow Stripe",
+        "category": "Skirts",
+        "brand": "Ice",
+        "retail_price": 24.989999771118164
+    },
+    {
+        "id": 7448,
+        "name": "(2384) Fishtail Flute Skirt with Free Skinny Belt Beige",
+        "category": "Skirts",
+        "brand": "Ice",
+        "retail_price": 24.989999771118164
+    }
+]
