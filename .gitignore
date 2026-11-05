@@ -207,6 +207,8 @@ marimo/_lsp/
 __marimo__/
 
 # Custom
+.DS_Store
 app/static/tryon_images/
 app/static/tryon_videos/
-data/
+app/geminaise_agent/.adk/
+data/product_embeddings.pkl
