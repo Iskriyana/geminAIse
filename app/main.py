@@ -4,9 +4,10 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent.parent / ".env")
 
-# The ADK Live API must NOT see GOOGLE_CLOUD_PROJECT/LOCATION (it would
-# switch to Vertex AI endpoints which don't support Live).
-# However the semantic search module needs them to call gemini-embedding-2-preview.
+# The Live agent runs against the Gemini API (API key); routing to Vertex AI is
+# controlled by GOOGLE_GENAI_USE_VERTEXAI, which stays unset. As a belt-and-braces
+# measure, also keep GOOGLE_CLOUD_PROJECT/LOCATION out of the ADK client's environment.
+# The semantic search and video modules need them to call Vertex AI.
 # Save them to dedicated variables that semantic_search.py reads directly,
 # then remove from the process environment so ADK keeps using Google AI Studio.
 _GCP_PROJECT = os.environ.pop("GOOGLE_CLOUD_PROJECT", None)

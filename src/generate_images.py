@@ -8,8 +8,8 @@ def generate_product_images():
     load_dotenv()
     
     # Verify API key
-    if "GEMINI_API_KEY" not in os.environ:
-        print("Error: GEMINI_API_KEY environment variable not set.")
+    if not (os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")):
+        print("Error: GOOGLE_API_KEY (or GEMINI_API_KEY) environment variable not set.")
         return
 
     # Load product data
